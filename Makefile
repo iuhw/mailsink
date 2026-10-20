@@ -42,6 +42,7 @@ check:
 	@echo "mailto: is handled by $$( '$(APP)/Contents/MacOS/$(APP_NAME)' --check )"
 
 icon:
+	@mkdir -p $(BUILD_DIR)
 	swiftc -O -o $(BUILD_DIR)/makeicon Sources/MakeIcon.swift
 	$(BUILD_DIR)/makeicon docs/icon.png
 	@rm -rf $(BUILD_DIR)/AppIcon.iconset && mkdir -p $(BUILD_DIR)/AppIcon.iconset
