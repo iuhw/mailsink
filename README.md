@@ -14,9 +14,10 @@ new mail, steals focus, and sometimes starts fetching your inbox. There is no
 "do nothing" option for `mailto:` anywhere in System Settings, and the picker
 that does exist is buried inside Mail's own preferences.
 
-MailSink is a ~200-line app that takes that job instead. When a `mailto:` link
-arrives it copies the recipient address(es) to the clipboard, shows a short
-notification, and exits. No mail client opens. Nothing is sent.
+MailSink is a ~250-line app that takes that job instead. When a `mailto:` link
+arrives it copies the recipient address(es) to the clipboard, or opens a Gmail
+compose window in your browser, or does nothing at all — and then exits. No mail
+client opens unless you ask for one. Nothing is sent.
 
 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
@@ -24,7 +25,8 @@ notification, and exits. No mail client opens. Nothing is sent.
 
 | | |
 |---|---|
-| Click an email address anywhere | Addresses are copied to the clipboard |
+| Click an email address anywhere | Depends on the mode you pick (see below) |
+| Default mode (`copy`) | Addresses are copied to the clipboard |
 | Notification | "Email address copied — no email client was opened" |
 | Mail app | Never launched |
 | Background process | None — the app runs for ~0.4s and quits |
@@ -32,8 +34,21 @@ notification, and exits. No mail client opens. Nothing is sent.
 | Dock icon / menu bar item | None |
 
 `mailto:alice@example.com,bob@example.com?subject=Hi` becomes
-`alice@example.com, bob@example.com` — every address is kept, `subject`/`body`
-parameters are dropped.
+`alice@example.com, bob@example.com` — every address is kept, `cc` / `bcc` /
+`subject` / `body` parameters are parsed but not forced into your clipboard.
+
+### Modes
+
+| Mode | What a click does |
+|---|---|
+| `copy` (default) | Copies the recipient addresses to the clipboard |
+| `gmail` | Opens `mail.google.com` compose in your default browser, pre-filled with to / cc / bcc / subject / body |
+| `silent` | Nothing at all — no clipboard, no notification, no window |
+
+```sh
+$APP --mode gmail     # switch
+$APP --mode           # print the current mode
+```
 
 ## Requirements
 
@@ -68,7 +83,9 @@ APP=~/Applications/MailSink.app/Contents/MacOS/MailSink
 $APP --check          # who handles mailto: right now
 $APP --install        # take over again (e.g. after a Mail update)
 $APP --uninstall      # hand mailto: back to Apple Mail
+$APP --mode gmail     # copy | gmail | silent
 $APP --quiet off      # stop showing the notification
+$APP --dry-run 'mailto:a@b.com?subject=Hi'   # see what would happen
 $APP --help
 ```
 
@@ -90,8 +107,9 @@ preference files outside `io.github.iuhw.mailsink`.
 2. `LSSetDefaultHandlerForURLScheme("mailto", "io.github.iuhw.mailsink")` points
    the system at MailSink.
 3. macOS delivers the link as an Apple Event (`kInternetEventClass` /
-   `kAEGetURL`); the app reads the URL, parses the recipients, writes them to
-   `NSPasteboard`, fires an `osascript` notification and terminates.
+   `kAEGetURL`); the app parses the URL and dispatches on the mode — copy to
+   `NSPasteboard`, open a Gmail compose URL via `NSWorkspace`, or exit silently —
+   optionally firing an `osascript` notification.
 4. `LSUIElement` is `true`, so there is no Dock icon and no app switcher entry.
 
 ## FAQ
@@ -105,9 +123,13 @@ Re-run `make install` (or `--install`). macOS occasionally rewrites the `mailto:
 association. You can confirm with `--check`.
 
 **I actually want Gmail in the browser instead.**
-Not supported yet. Chrome and Firefox can each register their own `mailto:`
-handler for links clicked inside that browser, which covers the web-page case;
-a `--mode gmail` option is on the roadmap.
+Use `$APP --mode gmail`. The compose page opens pre-filled with recipients,
+cc, bcc, subject and body. It only covers Gmail; the URL is a plain `https://`
+link, so it works in whichever browser is your default.
+
+**Can I mix modes — copy sometimes, Gmail sometimes?**
+Not per click; the mode is a single setting. If you want a prompt on every
+click, Velja or Bumpr do that.
 
 **Why not just remove Mail.app?**
 It is a system app and cannot be removed. Deleting its accounts helps only in

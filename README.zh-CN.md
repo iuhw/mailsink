@@ -12,8 +12,9 @@
 交给 Apple Mail：弹出写信窗口、抢走焦点、开始收信。系统设置里根本没有
 「不处理 mailto:」这个选项，唯一的切换入口还藏在 Mail 自己的偏好设置里。
 
-MailSink 用大约 200 行代码接下这个差事：收到 `mailto:` 链接时，把收件人地址
-复制到剪贴板、弹一条简短通知，然后退出。不打开任何邮件客户端，也不会发出任何邮件。
+MailSink 用大约 250 行代码接下这个差事：收到 `mailto:` 链接时，按你选的模式处理——
+把收件人地址复制到剪贴板、或在浏览器里打开 Gmail 写信页、或干脆什么都不做——然后退出。
+不打开任何邮件客户端（除非你要求），也不会发出任何邮件。
 
 English: [README.md](README.md)
 
@@ -21,16 +22,30 @@ English: [README.md](README.md)
 
 | | |
 |---|---|
-| 在任何地方点邮箱地址 | 地址被复制到剪贴板 |
+| 在任何地方点邮箱地址 | 取决于你选的模式（见下） |
+| 默认模式（`copy`） | 地址被复制到剪贴板 |
 | 通知 | 「邮箱地址已复制 — 没有打开任何邮件客户端」 |
 | 邮件 App | 永不启动 |
 | 后台常驻 | 无，进程存活约 0.4 秒即退出 |
-| 联网 | 无 |
+| 联网 | 无（`gmail` 模式除外，它只是打开一个网页链接） |
 | Dock 图标 / 菜单栏图标 | 都没有 |
 
 `mailto:alice@example.com,bob@example.com?subject=Hi` 会变成
-`alice@example.com, bob@example.com` —— 多个收件人全部保留，`subject`/`body`
-等参数丢弃。
+`alice@example.com, bob@example.com` —— 多个收件人全部保留；`cc` / `bcc` /
+`subject` / `body` 会被解析，但不会塞进剪贴板。
+
+### 三种模式
+
+| 模式 | 点击后发生什么 |
+|---|---|
+| `copy`（默认） | 把收件人地址复制到剪贴板 |
+| `gmail` | 在默认浏览器打开 Gmail 写信页，收件人 / 抄送 / 密送 / 主题 / 正文都已填好 |
+| `silent` | 什么都不做：不复制、不通知、不弹窗 |
+
+```sh
+$APP --mode gmail     # 切换
+$APP --mode           # 查看当前模式
+```
 
 ## 环境要求
 
@@ -65,7 +80,9 @@ APP=~/Applications/MailSink.app/Contents/MacOS/MailSink
 $APP --check          # 当前谁在处理 mailto:
 $APP --install        # 重新接管（Mail 更新后可能被抢回去）
 $APP --uninstall      # 把 mailto: 交还 Apple Mail
+$APP --mode gmail     # copy | gmail | silent
 $APP --quiet off      # 关闭通知
+$APP --dry-run 'mailto:a@b.com?subject=Hi'   # 预演会发生什么，不真的执行
 $APP --help
 ```
 
@@ -86,8 +103,9 @@ make uninstall        # 交还 Apple Mail 并删除 App
    URL handler 的资格。
 2. `LSSetDefaultHandlerForURLScheme("mailto", "io.github.iuhw.mailsink")` 让系统把
    链接指向 MailSink。
-3. macOS 以 Apple Event（`kInternetEventClass` / `kAEGetURL`）投递链接；App 解析出
-   收件人、写入 `NSPasteboard`、调用 `osascript` 发通知，然后退出。
+3. macOS 以 Apple Event（`kInternetEventClass` / `kAEGetURL`）投递链接；App 解析后按模式
+   分派——写入 `NSPasteboard`、用 `NSWorkspace` 打开 Gmail 写信链接、或直接静默退出——
+   并按需调用 `osascript` 发通知。
 4. `LSUIElement = true`，所以没有 Dock 图标，也不出现在切换器里。
 
 ## 常见问题
@@ -100,8 +118,12 @@ make uninstall        # 交还 Apple Mail 并删除 App
 重跑 `make install`（或 `--install`）。用 `--check` 可以确认当前状态。
 
 **我想改成在浏览器里开 Gmail。**
-暂不支持。Chrome / Firefox 可以各自注册 `mailto:` handler，能覆盖「网页里点击」
-这一种场景；`--mode gmail` 在后续计划里。
+用 `$APP --mode gmail`。写信页会自动填好收件人、抄送、密送、主题和正文。目前只支持
+Gmail；它本质上是一个 `https://` 链接，所以走你系统的默认浏览器。
+
+**能不能这次复制、下次用 Gmail？**
+不能按次切换，模式是全局设置。如果你想要「每次点击都问我」，那是 Velja 或 Bumpr
+的活儿。
 
 **为什么不干脆删掉 Mail.app？**
 它是系统 App，删不掉。清空里面的账户只能保证误开时是个空窗口。
