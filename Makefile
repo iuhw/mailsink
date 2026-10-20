@@ -3,7 +3,9 @@ BUNDLE_ID  := io.github.iuhw.mailsink
 VERSION    := 1.0.0
 PREFIX     ?= $(HOME)/Applications
 APP        := $(PREFIX)/$(APP_NAME).app
-BUILD_DIR  := build
+# Staging lives in a ".noindex" directory so Spotlight never indexes the built
+# app and shows a duplicate in search results.
+BUILD_DIR  := build.noindex
 STAGED     := $(BUILD_DIR)/$(APP_NAME).app
 LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
